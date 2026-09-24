@@ -1,102 +1,714 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="my">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real Caush</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App (Core) SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <!-- Firebase Realtime Database SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <title>Real Caush - Reward Platform (Online)</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Firebase App & Realtime Database SDKs (Compat versions for easy setup) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-color: #f7f3ee; --card-bg: #ffffff; --text-color: #4a3b32;
+            --primary-accent: #d4a373; --btn-color: #bc6c25; --btn-text: #ffffff;
+            --nav-bg: #ffffff; --nav-text: #8c7a6b; --nav-active: #bc6c25;
+        }
+        body.dark-mode {
+            --bg-color: #1a1614; --card-bg: #26211e; --text-color: #f5ebe0;
+            --primary-accent: #dda15e; --btn-color: #dda15e; --btn-text: #1a1614;
+            --nav-bg: #26211e; --nav-text: #b0a499; --nav-active: #dda15e;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 12px 12px 80px 12px; min-height: 100vh; box-sizing: border-box; }
+        .container { max-width: 420px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .user-profile-badge { display: flex; align-items: center; gap: 8px; background: var(--card-bg); padding: 4px 12px 4px 4px; border-radius: 30px; border: 2px solid var(--primary-accent); cursor: pointer; }
+        .user-profile-badge img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .top-btns { display: flex; gap: 6px; align-items: center; }
+        .icon-btn { background: var(--card-bg); border: 2px solid var(--primary-accent); color: var(--text-color); padding: 6px 10px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        .secret-admin-trigger { width: 14px; height: 14px; background: transparent; border-radius: 50%; cursor: pointer; opacity: 0.03; }
+        .secret-admin-trigger:hover { opacity: 0.8; background: var(--primary-accent); }
+        .balance-card { background: linear-gradient(135deg, #e9d8a6, #dda15e); border: 3px solid #bc6c25; border-radius: 20px; padding: 20px; color: #2b2118; margin-bottom: 16px; box-shadow: 0 8px 16px rgba(188, 108, 37, 0.15); }
+        .balance-title { font-size: 13px; text-transform: uppercase; font-weight: bold; opacity: 0.85; }
+        .balance-amount { font-size: 28px; font-weight: 800; margin: 8px 0; }
+        .balance-sub { font-size: 14px; background: rgba(255,255,255,0.4); padding: 4px 8px; border-radius: 8px; display: inline-block; font-weight: 600; }
+        .action-grid { display: grid; gap: 12px; margin-bottom: 16px; }
+        .action-btn, .card-item { background: var(--card-bg); border: 2px solid var(--primary-accent); border-radius: 14px; padding: 14px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; }
+        .action-btn { width: 100%; color: var(--text-color); font-size: 16px; font-weight: bold; cursor: pointer; }
+        .card-info h4 { margin: 0 0 4px 0; font-size: 15px; }
+        .card-info p { margin: 0; font-size: 12px; opacity: 0.8; }
+        .card-btn { background: var(--btn-color); border: none; color: var(--btn-text); padding: 8px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .card-btn:disabled { background: #d8c8b8; color: #887a6d; cursor: not-allowed; }
+        .market-ticker { background: var(--card-bg); color: var(--btn-color); font-family: monospace; padding: 12px; border-radius: 12px; border: 2px solid var(--primary-accent); margin-bottom: 16px; text-align: center; font-size: 13px; font-weight: bold; }
+        .market-card { background: var(--card-bg); border: 2px solid var(--primary-accent); border-radius: 16px; padding: 16px; text-align: center; margin-bottom: 16px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 2px solid var(--primary-accent); display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
+        .nav-item { background: none; border: none; color: var(--nav-text); font-size: 11px; display: flex; flex-direction: column; align-items: center; cursor: pointer; width: 25%; }
+        .nav-item.active { color: var(--nav-active); font-weight: bold; }
+        .nav-item span.icon { font-size: 18px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
+        .modal-content { background: var(--card-bg); border: 3px solid var(--primary-accent); border-radius: 16px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; padding: 20px; box-sizing: border-box; color: var(--text-color); }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 2px solid var(--primary-accent); border-radius: 8px; background: var(--card-bg); color: var(--text-color); box-sizing: border-box; }
+        .close-btn { background: #bc6c25; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+    </style>
 </head>
-<body class="bg-gray-900 text-white font-sans antialiased">
+<body>
 
-    <div class="max-w-md mx-auto min-h-screen flex flex-col justify-between p-4 bg-gray-800 shadow-xl">
+    <div class="container">
         <!-- Header -->
-        <header class="flex justify-between items-center border-b border-gray-700 pb-3">
-            <h1 class="text-xl font-bold text-yellow-400">🔥 Real Caush</h1>
-            <div id="user-info" class="text-sm bg-gray-700 px-3 py-1 rounded-full">
-                <span>Coins: <strong id="coin-balance" class="text-yellow-400">0</strong></span>
+        <div class="header">
+            <div class="user-profile-badge" onclick="switchTab('profile')">
+                <img id="headerUserPic" src="https://via.placeholder.com/32" alt="User">
+                <span id="headerUserName">Player</span>
             </div>
-        </header>
+            <div class="top-btns">
+                <button class="icon-btn" onclick="toggleLang()" id="langBtn">ENG</button>
+                <button class="icon-btn" onclick="openSettingsModal()">⚙️</button>
+                <div class="secret-admin-trigger" onclick="checkAdminPassword()" title="Admin"></div>
+            </div>
+        </div>
 
-        <!-- Main Content Area -->
-        <main class="my-auto space-y-6 text-center">
-            <div class="bg-gray-700 p-6 rounded-xl shadow">
-                <h2 class="text-lg font-semibold mb-2">Welcome Back!</h2>
-                <p class="text-gray-300 text-sm mb-4">Earn coins by watching videos or completing tasks, then withdraw anytime.</p>
-                <button onclick="earnCoins()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition">
-                    Watch & Earn (+10 Coins)
+        <!-- HOME TAB -->
+        <div id="homeTab" class="tab-content active">
+            <div class="balance-card">
+                <div class="balance-title" id="tBalanceTitle">Total Balance</div>
+                <div class="balance-amount"><span id="coinVal">0</span> <span style="font-size: 16px;">Coins</span></div>
+                <div class="balance-sub">≈ <span id="mmkVal">0</span> MMK</div>
+            </div>
+            <div class="action-grid">
+                <div class="card-item" style="margin:0;">
+                    <div class="card-info">
+                        <h4 id="tEarnCoinTitle">Earn your coin (Ads)</h4>
+                        <p>Limit: <span id="adLimitCount">50</span>/50 left today</p>
+                    </div>
+                    <button class="card-btn" id="homeWatchBtn" onclick="watchHomeAd()">Watch (20s)</button>
+                </div>
+                <button class="action-btn" onclick="openWithdrawModal()" id="tWithdrawBtn">
+                    <span>💸 Withdraw to KBZ / Wave</span><span>➔</span>
                 </button>
             </div>
+        </div>
 
-            <div class="bg-gray-700 p-4 rounded-xl">
-                <h3 class="text-sm font-semibold mb-2 text-gray-300">Withdrawal Request</h3>
-                <button onclick="requestWithdraw()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">
-                    Withdraw Coins
-                </button>
+        <!-- MARKET TAB -->
+        <div id="marketTab" class="tab-content">
+            <div style="text-align: center; margin-bottom: 12px;">
+                <h2 style="margin:0;">📈 Digital Market Exchange</h2>
+                <p id="marketRateDisplay" style="font-size:12px; opacity:0.8;">Live Rate: Loading...</p>
             </div>
-        </main>
+            <div class="market-ticker" id="marketTicker">📊 REAL CAUSH SYSTEM: SYNCED WITH SERVER 💹</div>
+            <div class="market-card">
+                <h3>🔄 Coin to MMK Converter</h3>
+                <div class="form-group"><input type="number" id="convertCoinInput" placeholder="Enter Coins" oninput="calcExchange()"></div>
+                <p style="font-size: 14px; font-weight: bold; margin: 8px 0;">You will get: <span id="previewMmk" style="color:var(--btn-color);">0.00</span> MMK</p>
+                <button class="card-btn" style="width:100%;" onclick="executeCoinExchange()">Exchange Now</button>
+            </div>
+        </div>
 
-        <!-- Footer -->
-        <footer class="text-center text-xs text-gray-500 border-t border-gray-700 pt-3">
-            &copy; 2026 Real Caush. All rights reserved.
-        </footer>
+        <!-- TASKS TAB -->
+        <div id="tasksTab" class="tab-content">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;" id="tTaskHeader">📋 Tasks Center (10 Tasks)</h2>
+                <p style="font-size: 13px; opacity: 0.8;" id="tTaskSub">Watch 20s ad per task & claim</p>
+            </div>
+            <div id="taskListContainer"></div>
+        </div>
+
+        <!-- PROFILE TAB -->
+        <div id="profileTab" class="tab-content">
+            <div class="card-item" style="flex-direction: column; text-align: center; gap: 8px;">
+                <img id="profileUserPic" src="https://via.placeholder.com/80" style="width:80px; height:80px; border-radius:50%; border:3px solid var(--primary-accent); object-fit:cover;" alt="User">
+                <h3 id="profileUserName" style="margin:0;">User Name</h3>
+                <p style="margin:0; font-size:12px;">Telegram ID: <span id="profileUserId">123456</span></p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div class="card-item" style="flex-direction: column; text-align:center; margin:0;">
+                    <span style="font-size:12px; opacity:0.8;">My Coins</span>
+                    <h3 id="profileCoinVal" style="margin:4px 0; color:var(--btn-color);">0</h3>
+                </div>
+                <div class="card-item" style="flex-direction: column; text-align:center; margin:0;">
+                    <span style="font-size:12px; opacity:0.8;">My MMK</span>
+                    <h3 id="profileMmkVal" style="margin:4px 0; color:#bc6c25;">0</h3>
+                </div>
+            </div>
+            <div class="card-item" style="flex-direction: column; align-items: flex-start;">
+                <h4 style="margin:0 0 8px 0;">📜 Withdrawal History</h4>
+                <div id="historyListContainer" style="width:100%; max-height:150px; overflow-y:auto; font-size:12px;">
+                    <p style="text-align:center; opacity:0.6;">No history yet.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase Configuration & Script -->
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-item active" id="navHome" onclick="switchTab('home')"><span class="icon">🏠</span><span id="tNavHome">Home</span></button>
+        <button class="nav-item" id="navMarket" onclick="switchTab('market')"><span class="icon">📈</span><span id="tNavMarket">Market</span></button>
+        <button class="nav-item" id="navTasks" onclick="switchTab('tasks')"><span class="icon">📋</span><span id="tNavTasks">Tasks</span></button>
+        <button class="nav-item" id="navProfile" onclick="switchTab('profile')"><span class="icon">👤</span><span id="tNavProfile">Profile</span></button>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <h3>⚙️ Settings & User Info</h3>
+            <div class="form-group"><button class="card-btn" style="width:100%;" onclick="toggleDarkMode()">Toggle Dark / Light Mode</button></div>
+            <div style="font-size: 13px; margin-top: 15px; background:rgba(0,0,0,0.03); padding:12px; border-radius:8px;">
+                <p><b>App Name:</b> Real Caush</p>
+                <p><b>User Name:</b> <span id="setUserName"></span></p>
+                <p><b>Telegram ID:</b> <span id="setUserId"></span></p>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('settingsModal').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <!-- WITHDRAW MODAL -->
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <h3>💸 Withdraw to MMK</h3>
+            <div class="form-group"><label>Select Bank / Payment:</label><select id="withdrawBank"><option value="KBZ Pay">KBZ Pay</option><option value="Wave Money">Wave Money</option></select></div>
+            <div class="form-group"><label>Phone Number:</label><input type="text" id="withdrawPhone" placeholder="09xxxxxxxxx"></div>
+            <div class="form-group"><label>Amount in MMK:</label><input type="number" id="withdrawMmkAmount" placeholder="Enter MMK amount"></div>
+            <button class="card-btn" style="background:#bc6c25; color:white; width:100%;" onclick="submitWithdrawal()">Submit Request</button>
+            <button class="close-btn" onclick="closeWithdrawModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div class="modal" id="adminModal">
+        <div class="modal-content">
+            <h3>🔐 Admin Control Panel (Live)</h3>
+            <div class="form-group"><label>1. Home Ad Coin Reward:</label><input type="number" id="admHomeCoin"></div>
+            <div class="form-group"><label>2. Task Ad Coin Reward:</label><input type="number" id="admTaskCoin"></div>
+            <div class="form-group">
+                <label>3. Exchange Rate (Coin to MMK):</label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <input type="number" id="admExCoins" placeholder="Coins"><span>Coins =</span><input type="number" id="admExMmk" placeholder="MMK">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>4. Market & Withdraw Switch:</label>
+                <select id="admMarketStatus"><option value="open">🟢 Market Open</option><option value="closed">🔴 Market Closed</option></select>
+                <select id="admWithdrawStatus" style="margin-top:4px;"><option value="open">🟢 Withdraw Open</option><option value="closed">🔴 Withdraw Closed</option></select>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label>5. Ad Links (Adsterra / Monetag URLs):</label>
+                <input type="text" id="newAdLink" placeholder="https://your-ad-link.com">
+                <button class="card-btn" style="width:100%; margin-top:6px;" onclick="addAdLink()">Add Ad Link</button>
+                <p style="font-size: 11px; margin: 4px 0;">Total Links: <span id="linkCount">0</span></p>
+                <div id="linkList" style="max-height: 80px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label>6. User Management & Search:</label>
+                <input type="text" id="searchUserQuery" placeholder="Search by ID or Name..." oninput="renderUserList()">
+                <p style="font-size: 11px; margin: 4px 0;">Total Users: <span id="statTotal">0</span></p>
+                <div id="userListContainer" style="max-height: 120px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label>7. Manual Coin / MMK Adjustment:</label>
+                <input type="text" id="adjUserId" placeholder="Enter Telegram ID">
+                <input type="number" id="adjCoinVal" placeholder="Coin (+/-)" style="margin-top:4px;">
+                <input type="number" id="adjMmkVal" placeholder="MMK (+/-)" style="margin-top:4px;">
+                <button class="card-btn" style="width:100%; margin-top:6px;" onclick="applyUserAdjustment()">Apply Changes</button>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label>8. Withdrawal Requests:</label>
+                <div id="adminWithdrawRequests" style="max-height: 120px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
+            </div>
+            <button class="card-btn" style="background:#bc6c25; color:#fff; width:100%; margin-top:10px;" onclick="saveAdminSettings()">Save Settings</button>
+            <button class="close-btn" onclick="closeAdminModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- AD WATCHING SIMULATOR MODAL -->
+    <div class="modal" id="adModal">
+        <div class="modal-content" style="text-align: center;">
+            <h3>📺 Watching 20s Advertisement</h3>
+            <p id="adTimerText">Please wait 20 seconds...</p>
+            <h1 id="countdownNum" style="font-size: 40px; color: var(--btn-color); margin: 10px 0;">20</h1>
+        </div>
+    </div>
+
     <script>
-        // Your web app's Firebase configuration
+        // Real Caush Firebase Configuration
         const firebaseConfig = {
-            databaseURL: "https://real-caush-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyC5vFtQKGunYNwXHdTzti0XlFWmIo1PBvA",
+            authDomain: "real-caush.firebaseapp.com",
+            databaseURL: "https://real-caush-default-rtdb.firebaseio.com",
+            projectId: "real-caush",
+            storageBucket: "real-caush.firebasestorage.app",
+            messagingSenderId: "1068777819462",
+            appId: "1:1068777819462:web:a5265c61078c8213812947",
+            measurementId: "G-04P4EGBYYK"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Sample User ID (You can replace this with Telegram WebApp user ID if needed)
-        const userId = "user_12345"; 
-        let currentCoins = 0;
+        let tg = window.Telegram.WebApp;
+        tg.expand();
 
-        // Reference to user coins in Firebase Realtime Database
-        const userRef = db.ref('users/' + userId);
+        let telegramUser = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+        let currentUser = {
+            id: telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(100000 + Math.random() * 900000),
+            name: telegramUser ? (telegramUser.first_name + (telegramUser.last_name ? ' ' + telegramUser.last_name : '')) : "Web Player",
+            photo: telegramUser && telegramUser.photo_url ? telegramUser.photo_url : "https://via.placeholder.com/80",
+            active: true
+        };
 
-        // Fetch initial data
-        userRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.coins !== undefined) {
-                currentCoins = data.coins;
-                document.getElementById('coin-balance').innerText = currentCoins;
-            } else {
-                userRef.set({ coins: 0 });
-            }
+        let settings = {
+            homeCoin: 10, taskCoin: 5, exCoins: 1000, exMmk: 100,
+            marketOpen: true, withdrawOpen: true, adLinks: []
+        };
+
+        let coins = 0;
+        let mmkBalance = 0.0;
+        let userHistory = [];
+        let allUsersObj = {};
+        let allRequestsObj = {};
+        let lang = localStorage.getItem('app_lang') || 'my';
+        let isDarkMode = localStorage.getItem('dark_mode') === 'true';
+        let currentAdIndex = parseInt(localStorage.getItem('current_ad_rotation_index')) || 0;
+        let adLimitData = JSON.parse(localStorage.getItem('ad_limit_' + currentUser.id)) || { count: 0, resetTime: Date.now() + 86400000 };
+        let taskStates = JSON.parse(localStorage.getItem('task_states_' + currentUser.id)) || {};
+
+        // Listen to Firebase Live Data
+        db.ref('settings').on('value', (snapshot) => {
+            if (snapshot.val()) settings = snapshot.val();
+            updateMarketRateDisplay();
+            renderTasks();
         });
 
-        // Earn Coins Function
-        function earnCoins() {
-            currentCoins += 10;
-            userRef.update({ coins: currentCoins }).then(() => {
-                alert("Successfully earned 10 coins!");
-            }).catch((error) => {
-                console.error("Error updating coins: ", error);
+        db.ref('users/' + currentUser.id).on('value', (snapshot) => {
+            let data = snapshot.val();
+            if (data) {
+                coins = data.coins || 0;
+                mmkBalance = data.mmk || 0.0;
+                userHistory = data.history || [];
+                currentUser.active = data.active !== false;
+            } else {
+                syncUserDataToFirebase();
+            }
+            updateUI();
+        });
+
+        db.ref('users').on('value', (snapshot) => {
+            allUsersObj = snapshot.val() || {};
+        });
+
+        db.ref('withdraw_requests').on('value', (snapshot) => {
+            allRequestsObj = snapshot.val() || {};
+        });
+
+        initApp();
+
+        function initApp() {
+            if (isDarkMode) document.body.classList.add('dark-mode');
+            checkAdLimitReset();
+            initUserData();
+            updateLanguageText();
+            startDigitalTicker();
+        }
+
+        function initUserData() {
+            document.getElementById('headerUserName').innerText = currentUser.name;
+            document.getElementById('headerUserPic').src = currentUser.photo;
+            document.getElementById('profileUserName').innerText = currentUser.name;
+            document.getElementById('profileUserId').innerText = currentUser.id;
+            document.getElementById('profileUserPic').src = currentUser.photo;
+            document.getElementById('setUserName').innerText = currentUser.name;
+            document.getElementById('setUserId').innerText = currentUser.id;
+        }
+
+        function syncUserDataToFirebase() {
+            db.ref('users/' + currentUser.id).set({
+                id: currentUser.id,
+                name: currentUser.name,
+                photo: currentUser.photo,
+                coins: coins,
+                mmk: mmkBalance,
+                active: currentUser.active,
+                history: userHistory
             });
         }
 
-        // Withdraw Function
-        function requestWithdraw() {
-            if (currentCoins < 100) {
-                alert("You need at least 100 coins to withdraw!");
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('dark_mode', isDarkMode);
+            if (isDarkMode) document.body.classList.add('dark-mode');
+            else document.body.classList.remove('dark-mode');
+        }
+
+        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+
+        function switchTab(tabName) {
+            ['homeTab', 'marketTab', 'tasksTab', 'profileTab'].forEach(t => document.getElementById(t).classList.remove('active'));
+            ['navHome', 'navMarket', 'navTasks', 'navProfile'].forEach(n => document.getElementById(n).classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            document.getElementById('nav' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            if (tabName === 'profile') renderHistory();
+        }
+
+        function toggleLang() {
+            lang = lang === 'my' ? 'eng' : 'my';
+            localStorage.setItem('app_lang', lang);
+            document.getElementById('langBtn').innerText = lang.toUpperCase();
+            updateLanguageText();
+        }
+
+        function updateLanguageText() {
+            if (lang === 'eng') {
+                document.getElementById('tBalanceTitle').innerText = "Total Balance";
+                document.getElementById('tEarnCoinTitle').innerText = "Earn your coin (Ads)";
+                document.getElementById('homeWatchBtn').innerText = "Watch (20s)";
+                document.getElementById('tWithdrawBtn').innerHTML = "<span>💸 Withdraw to KBZ / Wave</span><span>➔</span>";
+                document.getElementById('tNavHome').innerText = "Home";
+                document.getElementById('tNavMarket').innerText = "Market";
+                document.getElementById('tNavTasks').innerText = "Tasks";
+                document.getElementById('tNavProfile').innerText = "Profile";
+            } else {
+                document.getElementById('tBalanceTitle').innerText = "စုစုပေါင်း လက်ကျန်ငွေ";
+                document.getElementById('tEarnCoinTitle').innerText = "ဒင်္ဂါးပြား ရှာရန် (ကြော်ငြာ)";
+                document.getElementById('homeWatchBtn').innerText = "ကြည့်မည် (၂၀ စက္ကန့်)";
+                document.getElementById('tWithdrawBtn').innerHTML = "<span>💸 KBZ / Wave သို့ ငွေထုတ်မည်</span><span>➔</span>";
+                document.getElementById('tNavHome').innerText = "ပင်မ";
+                document.getElementById('tNavMarket').innerText = "စျေးကွက်";
+                document.getElementById('tNavTasks').innerText = "တာဝန်များ";
+                document.getElementById('tNavProfile').innerText = "ကိုယ်ရေး";
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('coinVal').innerText = coins;
+            document.getElementById('mmkVal').innerText = mmkBalance.toFixed(2);
+            document.getElementById('profileCoinVal').innerText = coins;
+            document.getElementById('profileMmkVal').innerText = mmkBalance.toFixed(2);
+            document.getElementById('adLimitCount').innerText = (50 - adLimitData.count);
+        }
+
+        function updateMarketRateDisplay() {
+            document.getElementById('marketRateDisplay').innerText = `Live Rate: ${settings.exCoins || 1000} Coins = ${settings.exMmk || 100} MMK`;
+        }
+
+        function startDigitalTicker() {
+            let ticker = document.getElementById('marketTicker');
+            setInterval(() => {
+                let fluctuation = (Math.random() * 0.4 - 0.2).toFixed(2);
+                let trend = fluctuation >= 0 ? '📈 BULLISH (+' + fluctuation + '%)' : '📉 BEARISH (' + fluctuation + '%)';
+                ticker.innerHTML = `📊 REAL CAUSH LIVE: ${settings.exCoins || 1000} Coins = ${settings.exMmk || 100} MMK | ${trend}`;
+            }, 4000);
+        }
+
+        function checkAdLimitReset() {
+            let now = Date.now();
+            if (now >= adLimitData.resetTime) {
+                adLimitData.count = 0;
+                adLimitData.resetTime = now + 86400000;
+                localStorage.setItem('ad_limit_' + currentUser.id, JSON.stringify(adLimitData));
+            }
+        }
+
+        function calcExchange() {
+            let val = parseInt(document.getElementById('convertCoinInput').value) || 0;
+            let rateMultiplier = (settings.exMmk || 100) / (settings.exCoins || 1000);
+            document.getElementById('previewMmk').innerText = (val * rateMultiplier).toFixed(2);
+        }
+
+        function executeCoinExchange() {
+            if (!settings.marketOpen) { alert('Market is currently closed by Admin.'); return; }
+            let cInput = parseInt(document.getElementById('convertCoinInput').value) || 0;
+            if (cInput <= 0 || cInput > coins) { alert('Invalid coin amount or insufficient balance.'); return; }
+            let mmkEarned = cInput * ((settings.exMmk || 100) / (settings.exCoins || 1000));
+            coins -= cInput;
+            mmkBalance += mmkEarned;
+            syncUserDataToFirebase();
+            document.getElementById('convertCoinInput').value = '';
+            alert('Successfully exchanged to ' + mmkEarned.toFixed(2) + ' MMK');
+        }
+
+        function triggerNextRotatedAd() {
+            if (settings.adLinks && settings.adLinks.length > 0) {
+                let linkToOpen = settings.adLinks[currentAdIndex];
+                window.open(linkToOpen, '_blank');
+                currentAdIndex = (currentAdIndex + 1) % settings.adLinks.length;
+                localStorage.setItem('current_ad_rotation_index', currentAdIndex);
+            } else {
+                alert('Admin has not added any ad links yet!');
+            }
+        }
+
+        function startAdTimer(rewardCoins, isHomeAd, callback) {
+            if (!currentUser.active) { alert('Your account has been banned by Admin.'); return; }
+            if (isHomeAd) {
+                checkAdLimitReset();
+                if (adLimitData.count >= 50) { alert('Daily limit of 50 ads reached.'); return; }
+            }
+            triggerNextRotatedAd();
+
+            let modal = document.getElementById('adModal');
+            modal.style.display = 'flex';
+            let timeLeft = 20;
+            document.getElementById('countdownNum').innerText = timeLeft;
+
+            let timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('countdownNum').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    modal.style.display = 'none';
+                    if (isHomeAd) {
+                        adLimitData.count++;
+                        localStorage.setItem('ad_limit_' + currentUser.id, JSON.stringify(adLimitData));
+                    }
+                    if (rewardCoins > 0) {
+                        coins += rewardCoins;
+                        syncUserDataToFirebase();
+                    }
+                    if (callback) callback();
+                }
+            }, 1000);
+        }
+
+        function watchHomeAd() {
+            startAdTimer(settings.homeCoin || 10, true, () => {
+                alert('Earned ' + (settings.homeCoin || 10) + ' Coins!');
+            });
+        }
+
+        function renderTasks() {
+            let container = document.getElementById('taskListContainer');
+            container.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                let state = taskStates[i] || 'watch';
+                let btnText = state === 'watch' ? 'Watch (20s)' : state === 'claim' ? 'Claim' : 'Done';
+                let isDisabled = state === 'done' ? 'disabled' : '';
+                let div = document.createElement('div');
+                div.className = 'card-item';
+                div.innerHTML = `
+                    <div class="card-info">
+                        <h4>Task #${i}</h4>
+                        <p>Watch 20s ad & claim ${settings.taskCoin || 5} coins</p>
+                    </div>
+                    <button class="card-btn" ${isDisabled} onclick="handleTask(${i})">${btnText}</button>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function handleTask(taskId) {
+            let state = taskStates[taskId] || 'watch';
+            if (state === 'watch') {
+                startAdTimer(0, false, () => {
+                    taskStates[taskId] = 'claim';
+                    localStorage.setItem('task_states_' + currentUser.id, JSON.stringify(taskStates));
+                    renderTasks();
+                    alert('Ad finished! Click Claim.');
+                });
+            } else if (state === 'claim') {
+                coins += (settings.taskCoin || 5);
+                taskStates[taskId] = 'done';
+                localStorage.setItem('task_states_' + currentUser.id, JSON.stringify(taskStates));
+                syncUserDataToFirebase();
+                renderTasks();
+                alert('Claimed ' + (settings.taskCoin || 5) + ' Coins!');
+            }
+        }
+
+        function openWithdrawModal() {
+            if (!settings.withdrawOpen) { alert('Withdrawals are currently closed by Admin.'); return; }
+            document.getElementById('withdrawModal').style.display = 'flex';
+        }
+
+        function closeWithdrawModal() { document.getElementById('withdrawModal').style.display = 'none'; }
+
+        function submitWithdrawal() {
+            let bank = document.getElementById('withdrawBank').value;
+            let phone = document.getElementById('withdrawPhone').value.trim();
+            let amountMmk = parseFloat(document.getElementById('withdrawMmkAmount').value) || 0;
+            let requiredCoins = amountMmk / ((settings.exMmk || 100) / (settings.exCoins || 1000));
+
+            if (!phone || amountMmk <= 0 || coins < requiredCoins) {
+                alert('Please check details and ensure sufficient balance.');
                 return;
             }
-            db.ref('withdrawals/' + userId).push({
-                coins: currentCoins,
-                timestamp: Date.now()
-            }).then(() => {
-                alert("Withdrawal request submitted successfully!");
+
+            coins -= Math.ceil(requiredCoins);
+            let reqId = 'REQ-' + Math.floor(100000 + Math.random() * 900000);
+            let reqObj = {
+                reqId: reqId, userId: currentUser.id, name: currentUser.name,
+                bank: bank, phone: phone, amount: amountMmk, status: 'Pending'
+            };
+
+            userHistory.push(reqObj);
+            syncUserDataToFirebase();
+            db.ref('withdraw_requests/' + reqId).set(reqObj);
+
+            closeWithdrawModal();
+            alert('Withdrawal request submitted successfully!');
+        }
+
+        function renderHistory() {
+            let container = document.getElementById('historyListContainer');
+            container.innerHTML = '';
+            if (userHistory.length === 0) {
+                container.innerHTML = '<p style="text-align:center; opacity:0.6;">No history yet.</p>';
+                return;
+            }
+            userHistory.forEach(r => {
+                let d = document.createElement('div');
+                d.style.borderBottom = '1px solid rgba(0,0,0,0.1)';
+                d.style.padding = '4px 0';
+                d.innerHTML = `<b>${r.bank}</b> (${r.phone}) - ${r.amount} MMK <br><span style="color:${r.status === 'Sent' ? '#388e3c' : '#bc6c25'}">[Status: ${r.status}]</span>`;
+                container.appendChild(d);
             });
+        }
+
+        // --- Admin Controls ---
+        function checkAdminPassword() {
+            let pwd = prompt("Admin စကားဝှက် ထည့်ပါ:");
+            if (pwd === "13579") openAdminModal();
+            else if (pwd !== null) alert("စကားဝှက် မှားယွင်းနေပါသည်။");
+        }
+
+        function openAdminModal() {
+            document.getElementById('admHomeCoin').value = settings.homeCoin || 10;
+            document.getElementById('admTaskCoin').value = settings.taskCoin || 5;
+            document.getElementById('admExCoins').value = settings.exCoins || 1000;
+            document.getElementById('admExMmk').value = settings.exMmk || 100;
+            document.getElementById('admMarketStatus').value = settings.marketOpen !== false ? 'open' : 'closed';
+            document.getElementById('admWithdrawStatus').value = settings.withdrawOpen !== false ? 'open' : 'closed';
+            renderAdminLinks();
+            renderUserList();
+            renderAdminRequests();
+            document.getElementById('adminModal').style.display = 'flex';
+        }
+
+        function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
+
+        function saveAdminSettings() {
+            settings.homeCoin = parseInt(document.getElementById('admHomeCoin').value) || 10;
+            settings.taskCoin = parseInt(document.getElementById('admTaskCoin').value) || 5;
+            settings.exCoins = parseInt(document.getElementById('admExCoins').value) || 1000;
+            settings.exMmk = parseFloat(document.getElementById('admExMmk').value) || 100;
+            settings.marketOpen = document.getElementById('admMarketStatus').value === 'open';
+            settings.withdrawOpen = document.getElementById('admWithdrawStatus').value === 'open';
+            db.ref('settings').set(settings);
+            alert('Admin settings saved to server!');
+            closeAdminModal();
+        }
+
+        function addAdLink() {
+            let input = document.getElementById('newAdLink');
+            let val = input.value.trim();
+            if (val) {
+                if (!settings.adLinks) settings.adLinks = [];
+                settings.adLinks.push(val);
+                input.value = '';
+                db.ref('settings').set(settings);
+                renderAdminLinks();
+            }
+        }
+
+        function removeAdLink(idx) {
+            settings.adLinks.splice(idx, 1);
+            db.ref('settings').set(settings);
+            renderAdminLinks();
+        }
+
+        function renderAdminLinks() {
+            let div = document.getElementById('linkList');
+            div.innerHTML = '';
+            let links = settings.adLinks || [];
+            document.getElementById('linkCount').innerText = links.length;
+            links.forEach((l, i) => {
+                div.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>${i+1}. ${l.substring(0,22)}...</span><button onclick="removeAdLink(${i})" style="background:red; color:white; border:none; border-radius:3px; cursor:pointer;">X</button></div>`;
+            });
+        }
+
+        function renderUserList() {
+            let query = document.getElementById('searchUserQuery').value.toLowerCase();
+            let container = document.getElementById('userListContainer');
+            container.innerHTML = '';
+            let usersArray = Object.values(allUsersObj);
+            document.getElementById('statTotal').innerText = usersArray.length;
+            let filtered = usersArray.filter(u => u.name.toLowerCase().includes(query) || u.id.includes(query));
+
+            filtered.forEach(u => {
+                let d = document.createElement('div');
+                d.style.display = 'flex';
+                d.style.justify = 'space-between';
+                d.style.alignItems: 'center';
+                d.style.marginBottom = '4px';
+                d.style.borderBottom = '1px solid #ddd';
+                d.style.paddingBottom = '2px';
+                d.innerHTML = `
+                    <span><b>${u.name}</b> (ID: ${u.id})<br>Coins: ${u.coins || 0} | ${u.active !== false ? '🟢 Active' : '🔴 Banned'}</span>
+                    <button onclick="toggleUserBan('${u.id}')" style="background:${u.active !== false ? '#d32f2f' : '#388e3c'}; color:white; border:none; border-radius:3px; cursor:pointer; padding:2px 6px;">
+                        ${u.active !== false ? 'Ban' : 'Unban'}
+                    </button>
+                `;
+                container.appendChild(d);
+            });
+        }
+
+        function toggleUserBan(id) {
+            let u = allUsersObj[id];
+            if (id) {
+                let newStatus = u.active === false ? true : false;
+                db.ref('users/' + id).update({ active: newStatus });
+                renderUserList();
+            }
+        }
+
+        function applyUserAdjustment() {
+            let uid = document.getElementById('adjUserId').value.trim();
+            let cAdd = parseInt(document.getElementById('adjCoinVal').value) || 0;
+            let mAdd = parseFloat(document.getElementById('adjMmkVal').value) || 0;
+            if (!uid) { alert('Please enter a valid User Telegram ID.'); return; }
+
+            let targetUser = allUsersObj[uid];
+            if (targetUser) {
+                let newCoins = Math.max(0, (targetUser.coins || 0) + cAdd);
+                let newMmk = Math.max(0, (targetUser.mmk || 0) + mAdd);
+                db.ref('users/' + uid).update({ coins: newCoins, mmk: newMmk });
+                alert(`Successfully adjusted for User ID ${uid}`);
+            } else {
+                alert('User not found on server database.');
+            }
+            document.getElementById('adjUserId').value = '';
+            document.getElementById('adjCoinVal').value = '';
+            document.getElementById('adjMmkVal').value = '';
+        }
+
+        function renderAdminRequests() {
+            let div = document.getElementById('adminWithdrawRequests');
+            div.innerHTML = '';
+            let reqsArray = Object.values(allRequestsObj);
+            if (reqsArray.length === 0) {
+                div.innerHTML = '<p>No pending requests.</p>';
+                return;
+            }
+            reqsArray.forEach((req) => {
+                div.innerHTML += `
+                    <div style="border-bottom:1px solid #ccc; padding:4px 0; margin-bottom:4px;">
+                        <b>Name:</b> ${req.name} (ID: ${req.userId})<br>
+                        <b>Bank:</b> ${req.bank} | <b>Phone:</b> ${req.phone}<br>
+                        <b>Amount:</b> ${req.amount} MMK | <b>Status:</b> ${req.status}<br>
+                        ${req.status === 'Pending' ? `<button onclick="approveRequest('${req.reqId}')" style="background:#388e3c; color:white; border:none; padding:2px 6px; border-radius:4px; margin-top:4px; cursor:pointer;">Approve & Send</button>` : '<span style="color:green;">✔ Sent</span>'}
+                    </div>
+                `;
+            });
+        }
+
+        function approveRequest(reqId) {
+            db.ref('withdraw_requests/' + reqId).update({ status: 'Sent' });
+            alert('Request marked as Sent.');
         }
     </script>
 </body>
