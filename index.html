@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Caush</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App (Core) SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <!-- Firebase Realtime Database SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased">
+
+    <div class="max-w-md mx-auto min-h-screen flex flex-col justify-between p-4 bg-gray-800 shadow-xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center border-b border-gray-700 pb-3">
+            <h1 class="text-xl font-bold text-yellow-400">🔥 Real Caush</h1>
+            <div id="user-info" class="text-sm bg-gray-700 px-3 py-1 rounded-full">
+                <span>Coins: <strong id="coin-balance" class="text-yellow-400">0</strong></span>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="my-auto space-y-6 text-center">
+            <div class="bg-gray-700 p-6 rounded-xl shadow">
+                <h2 class="text-lg font-semibold mb-2">Welcome Back!</h2>
+                <p class="text-gray-300 text-sm mb-4">Earn coins by watching videos or completing tasks, then withdraw anytime.</p>
+                <button onclick="earnCoins()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition">
+                    Watch & Earn (+10 Coins)
+                </button>
+            </div>
+
+            <div class="bg-gray-700 p-4 rounded-xl">
+                <h3 class="text-sm font-semibold mb-2 text-gray-300">Withdrawal Request</h3>
+                <button onclick="requestWithdraw()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">
+                    Withdraw Coins
+                </button>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-gray-500 border-t border-gray-700 pt-3">
+            &copy; 2026 Real Caush. All rights reserved.
+        </footer>
+    </div>
+
+    <!-- Firebase Configuration & Script -->
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            databaseURL: "https://real-caush-default-rtdb.firebaseio.com"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Sample User ID (You can replace this with Telegram WebApp user ID if needed)
+        const userId = "user_12345"; 
+        let currentCoins = 0;
+
+        // Reference to user coins in Firebase Realtime Database
+        const userRef = db.ref('users/' + userId);
+
+        // Fetch initial data
+        userRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.coins !== undefined) {
+                currentCoins = data.coins;
+                document.getElementById('coin-balance').innerText = currentCoins;
+            } else {
+                userRef.set({ coins: 0 });
+            }
+        });
+
+        // Earn Coins Function
+        function earnCoins() {
+            currentCoins += 10;
+            userRef.update({ coins: currentCoins }).then(() => {
+                alert("Successfully earned 10 coins!");
+            }).catch((error) => {
+                console.error("Error updating coins: ", error);
+            });
+        }
+
+        // Withdraw Function
+        function requestWithdraw() {
+            if (currentCoins < 100) {
+                alert("You need at least 100 coins to withdraw!");
+                return;
+            }
+            db.ref('withdrawals/' + userId).push({
+                coins: currentCoins,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Withdrawal request submitted successfully!");
+            });
+        }
+    </script>
+</body>
+</html>
