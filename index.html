@@ -441,7 +441,7 @@
                 <p><b>App Name:</b> Real money</p>
                 <p><b>User Name:</b> <span id="setUserName"></span></p>
                 <p><b>Telegram ID:</b> <span id="setUserId"></span></p>
-                <p><b>App Version:</b> 3.3.0 (Supabase Connected)</p>
+                <p><b>App Version:</b> 3.4.0 (Supabase Synced)</p>
             </div>
             <button class="close-btn" onclick="document.getElementById('settingsModal').style.display='none'">Close</button>
         </div>
@@ -524,9 +524,9 @@
             <hr>
             <div class="form-group">
                 <label>7. User Management & Search:</label>
-                <input type="text" id="searchUserQuery" placeholder="Search by ID or Name..." oninput="renderUserList()">
+                <input type="text" id="searchUserQuery" placeholder="Search by ID or Name..." oninput="renderUserListFromSupabase()">
                 <p style="font-size: 11px; margin: 4px 0;">Total Users in DB: <span id="statTotal">0</span></p>
-                <div id="userListContainer" style="max-height: 100px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
+                <div id="userListContainer" style="max-height: 120px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
             </div>
 
             <hr>
@@ -571,7 +571,7 @@
         let lang = localStorage.getItem('app_lang') || 'my';
         let isDarkMode = localStorage.getItem('dark_mode') === 'true';
 
-        let settings = JSON.parse(localStorage.getItem('admin_settings')) || {
+        let settings = {
             homeCoin: 10,
             taskCoin: 5,
             exCoins: 1000,
@@ -588,24 +588,56 @@
             resetTime: Date.now() + 86400000
         };
 
-        // Current Telegram User Info
         let currentUser = {
             id: tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 123456789,
             name: tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : "DemoUser",
             photo: tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.photo_url ? tg.initDataUnsafe.user.photo_url : "https://via.placeholder.com/80",
             coins: 0,
-            role: 'user'
+            role: 'user',
+            status: 'active'
         };
 
-        let allUsersFromSupabase = [];
-        let allRequestsFromSupabase = [];
         let taskStates = JSON.parse(localStorage.getItem('task_states')) || {};
 
-        // Initialize App and Sync with Supabase
+        // Load Settings from Supabase
+        async function loadSettingsFromSupabase() {
+            try {
+                let { data, error } = await supabaseClient.from('app_settings').select('*');
+                if (!error && data && data.length > 0) {
+                    data.forEach(item => {
+                        if (item.key === 'app_config') {
+                            settings = JSON.parse(item.value);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading settings:", err);
+            }
+        }
+
+        // Save Settings to Supabase
+        async function saveSettingsToSupabase() {
+            try {
+                await supabaseClient
+                    .from('app_settings')
+                    .upsert([{ key: 'app_config', value: JSON.stringify(settings), updated_at: new Date() }]);
+            } catch (err) {
+                console.error("Error saving settings:", err);
+            }
+        }
+
         async function initApp() {
             if (isDarkMode) document.body.classList.add('dark-mode');
             checkAdLimitReset();
+            await loadSettingsFromSupabase();
             await syncUserWithSupabase();
+            
+            if (currentUser.status === 'banned') {
+                alert("Your account has been banned by Admin.");
+                document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px; color:red;'>Account Banned 🚫</h2>";
+                return;
+            }
+
             updateUI();
             renderTasks();
             updateLanguageText();
@@ -624,22 +656,21 @@
                     .single();
 
                 if (error || !data) {
-                    // Insert new user into Supabase
-                    let { error: insertError } = await supabaseClient
+                    await supabaseClient
                         .from('users')
                         .insert([{
                             telegram_id: currentUser.id,
                             username: currentUser.name,
                             coins: 0,
-                            role: (currentUser.id === 123456789 ? 'admin' : 'user') // First testing ID can be admin or update via DB
+                            role: 'user',
+                            status: 'active'
                         }]);
-                    if (!insertError) {
-                        currentUser.coins = 0;
-                        currentUser.role = 'user';
-                    }
+                    currentUser.coins = 0;
+                    currentUser.status = 'active';
                 } else {
                     currentUser.coins = parseFloat(data.coins) || 0;
                     currentUser.role = data.role || 'user';
+                    currentUser.status = data.status || 'active';
                 }
             } catch (err) {
                 console.error("Supabase sync error:", err);
@@ -895,7 +926,6 @@
         }
 
         async function submitWithdrawal() {
-            let bank = document.getElementById('withdrawBank').value;
             let phone = document.getElementById('withdrawPhone').value.trim();
             let amountMmk = parseFloat(document.getElementById('withdrawMmkAmount').value) || 0;
 
@@ -910,7 +940,6 @@
             let newCoins = currentUser.coins - Math.ceil(requiredCoins);
             await updateSupabaseCoins(newCoins);
 
-            // Insert withdrawal request into Supabase
             let { error } = await supabaseClient
                 .from('withdrawals')
                 .insert([{
@@ -978,15 +1007,17 @@
             document.getElementById('adminModal').style.display = 'none';
         }
 
-        function saveAdminSettings() {
+        async function saveAdminSettings() {
             settings.homeCoin = parseInt(document.getElementById('admHomeCoin').value) || 10;
             settings.taskCoin = parseInt(document.getElementById('admTaskCoin').value) || 5;
             settings.exCoins = parseInt(document.getElementById('admExCoins').value) || 1000;
             settings.exMmk = parseFloat(document.getElementById('admExMmk').value) || 100;
             settings.marketOpen = document.getElementById('admMarketStatus').value === 'open';
             settings.withdrawOpen = document.getElementById('admWithdrawStatus').value === 'open';
-            localStorage.setItem('admin_settings', JSON.stringify(settings));
-            alert('Admin settings saved successfully!');
+            
+            await saveSettingsToSupabase();
+
+            alert('Admin settings saved successfully to Supabase!');
             closeAdminModal();
             updateUI();
             updateMarketRateDisplay();
@@ -998,14 +1029,14 @@
             if (val) {
                 settings.adLinks.push(val);
                 input.value = '';
-                localStorage.setItem('admin_settings', JSON.stringify(settings));
+                saveSettingsToSupabase();
                 renderAdminLinks();
             }
         }
 
         function removeAdLink(idx) {
             settings.adLinks.splice(idx, 1);
-            localStorage.setItem('admin_settings', JSON.stringify(settings));
+            saveSettingsToSupabase();
             renderAdminLinks();
         }
 
@@ -1030,18 +1061,26 @@
             let filtered = users.filter(u => (u.username && u.username.toLowerCase().includes(query)) || String(u.telegram_id).includes(query));
 
             filtered.forEach(u => {
+                let isBanned = u.status === 'banned';
                 let d = document.createElement('div');
                 d.style.display = 'flex';
                 d.style.justify = 'space-between';
                 d.style.alignItems = 'center';
-                d.style.marginBottom = '4px';
+                d.style.marginBottom = '6px';
                 d.style.borderBottom = '1px solid #ddd';
-                d.style.paddingBottom = '2px';
+                d.style.paddingBottom = '4px';
                 d.innerHTML = `
-                    <span><b>${u.username || 'No Name'}</b> (ID: ${u.telegram_id}) - ${u.coins} Coins</span>
+                    <span><b>${u.username || 'No Name'}</b> (ID: ${u.telegram_id})<br>Coins: ${u.coins} | <span style="color:${isBanned?'red':'green'}">${u.status||'active'}</span></span>
+                    <button onclick="toggleUserBan('${u.telegram_id}', '${u.status}')" style="background:${isBanned?'#388e3c':'#d32f2f'}; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:10px;">${isBanned?'Unban':'Ban'}</button>
                 `;
                 container.appendChild(d);
             });
+        }
+
+        async function toggleUserBan(telegramId, currentStatus) {
+            let newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+            await supabaseClient.from('users').update({ status: newStatus }).eq('telegram_id', telegramId);
+            renderUserListFromSupabase();
         }
 
         async function applyUserAdjustment() {
@@ -1077,7 +1116,7 @@
             let div = document.getElementById('adminWithdrawRequests');
             div.innerHTML = '';
 
-            let { data: reqs, error } = await supabaseClient.from('withdrawals').select('*, users(username)').order('created_at', { ascending: false });
+            let { data: reqs, error } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
             if (error || !reqs || reqs.length === 0) {
                 div.innerHTML = '<p>No pending requests.</p>';
                 return;
