@@ -441,7 +441,7 @@
                 <p><b>App Name:</b> Real money</p>
                 <p><b>User Name:</b> <span id="setUserName"></span></p>
                 <p><b>Telegram ID:</b> <span id="setUserId"></span></p>
-                <p><b>App Version:</b> 3.4.0 (Supabase Synced)</p>
+                <p><b>App Version:</b> 3.5.0 (Active/Banned Split)</p>
             </div>
             <button class="close-btn" onclick="document.getElementById('settingsModal').style.display='none'">Close</button>
         </div>
@@ -523,10 +523,15 @@
 
             <hr>
             <div class="form-group">
-                <label>7. User Management & Search:</label>
+                <label>7. User Management (Active / Banned Split):</label>
                 <input type="text" id="searchUserQuery" placeholder="Search by ID or Name..." oninput="renderUserListFromSupabase()">
                 <p style="font-size: 11px; margin: 4px 0;">Total Users in DB: <span id="statTotal">0</span></p>
-                <div id="userListContainer" style="max-height: 120px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
+                
+                <h4 style="margin:8px 0 4px 0; color:#388e3c; font-size:13px;">🟢 Active Users</h4>
+                <div id="activeUserListContainer" style="max-height: 120px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent); margin-bottom:8px;"></div>
+                
+                <h4 style="margin:8px 0 4px 0; color:#d32f2f; font-size:13px;">🔴 Banned Users</h4>
+                <div id="bannedUserListContainer" style="max-height: 100px; overflow-y:auto; font-size:11px; background:var(--card-bg); padding:4px; border-radius:4px; border:1px solid var(--primary-accent);"></div>
             </div>
 
             <hr>
@@ -599,7 +604,6 @@
 
         let taskStates = JSON.parse(localStorage.getItem('task_states')) || {};
 
-        // Load Settings from Supabase
         async function loadSettingsFromSupabase() {
             try {
                 let { data, error } = await supabaseClient.from('app_settings').select('*');
@@ -615,7 +619,6 @@
             }
         }
 
-        // Save Settings to Supabase
         async function saveSettingsToSupabase() {
             try {
                 await supabaseClient
@@ -633,8 +636,7 @@
             await syncUserWithSupabase();
             
             if (currentUser.status === 'banned') {
-                alert("Your account has been banned by Admin.");
-                document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px; color:red;'>Account Banned 🚫</h2>";
+                document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px; color:red;'>Your account has been banned by Admin 🚫</h2>";
                 return;
             }
 
@@ -1051,14 +1053,20 @@
 
         async function renderUserListFromSupabase() {
             let query = document.getElementById('searchUserQuery').value.toLowerCase();
-            let container = document.getElementById('userListContainer');
-            container.innerHTML = '';
+            let activeContainer = document.getElementById('activeUserListContainer');
+            let bannedContainer = document.getElementById('bannedUserListContainer');
+            
+            activeContainer.innerHTML = '';
+            bannedContainer.innerHTML = '';
 
             let { data: users, error } = await supabaseClient.from('users').select('*');
             if (error || !users) return;
 
             document.getElementById('statTotal').innerText = users.length;
             let filtered = users.filter(u => (u.username && u.username.toLowerCase().includes(query)) || String(u.telegram_id).includes(query));
+
+            let activeCount = 0;
+            let bannedCount = 0;
 
             filtered.forEach(u => {
                 let isBanned = u.status === 'banned';
@@ -1070,17 +1078,31 @@
                 d.style.borderBottom = '1px solid #ddd';
                 d.style.paddingBottom = '4px';
                 d.innerHTML = `
-                    <span><b>${u.username || 'No Name'}</b> (ID: ${u.telegram_id})<br>Coins: ${u.coins} | <span style="color:${isBanned?'red':'green'}">${u.status||'active'}</span></span>
-                    <button onclick="toggleUserBan('${u.telegram_id}', '${u.status}')" style="background:${isBanned?'#388e3c':'#d32f2f'}; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:10px;">${isBanned?'Unban':'Ban'}</button>
+                    <span><b>${u.username || 'No Name'}</b> (ID: ${u.telegram_id})<br>Coins: ${u.coins}</span>
+                    <button onclick="toggleUserBan('${u.telegram_id}', '${u.status || 'active'}')" style="background:${isBanned?'#388e3c':'#d32f2f'}; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:10px;">${isBanned?'Unban':'Ban'}</button>
                 `;
-                container.appendChild(d);
+
+                if (isBanned) {
+                    bannedContainer.appendChild(d);
+                    bannedCount++;
+                } else {
+                    activeContainer.appendChild(d);
+                    activeCount++;
+                }
             });
+
+            if (activeCount === 0) activeContainer.innerHTML = '<p style="text-align:center; opacity:0.6;">No active users.</p>';
+            if (bannedCount === 0) bannedContainer.innerHTML = '<p style="text-align:center; opacity:0.6;">No banned users.</p>';
         }
 
         async function toggleUserBan(telegramId, currentStatus) {
             let newStatus = currentStatus === 'banned' ? 'active' : 'banned';
-            await supabaseClient.from('users').update({ status: newStatus }).eq('telegram_id', telegramId);
-            renderUserListFromSupabase();
+            let { error } = await supabaseClient.from('users').update({ status: newStatus }).eq('telegram_id', telegramId);
+            if (error) {
+                alert("Failed to update status.");
+                return;
+            }
+            await renderUserListFromSupabase();
         }
 
         async function applyUserAdjustment() {
@@ -1139,7 +1161,6 @@
             renderAdminRequestsFromSupabase();
         }
 
-        // Run application on load
         window.onload = () => {
             initApp();
         };
